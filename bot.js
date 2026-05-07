@@ -1,146 +1,139 @@
 import { Telegraf, Markup, Scenes, session } from 'telegraf';
 import express from 'express';
 import cors from 'cors';
-import fs from 'fs';
-// --- DATABASE (Простая реализация на JSON файле) ---
-const DB_PATH = './db.json';
-// Инициализация БД
-if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({
-        applications: [],
-        team: [],
-        users: [],
-        stats: { totalPaid: 0 }
-    }, null, 2));
-}
-const getData = () => JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-const saveData = (data) => fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-const BOT_TOKEN = '8767761276:AAFRmhWKiSMZufw0mmeV85DlL9ShuyhGQ6A';
+import mongoose from 'mongoose';
+
+// --- DATABASE SCHEMA ---
+const MONGO_URI = process.env.MONGO_URI || 'ВАША_ССЫЛКА_ИЗ_MONGODB_ATLAS';
+mongoose.connect(MONGO_URI).then(() => console.log('MongoDB Connected')).catch(err => console.log(err));
+
+const AppSchema = new mongoose.Schema({
+    id: String,
+    type: String,
+    userId: String,
+    user: String,
+    nickname: String,
+    platform: String,
+    subscribers: String,
+    views: String,
+    channel: String,
+    video: String,
+    paymentInfo: String,
+    status: { type: String, default: 'pending' },
+    date: { type: Date, default: Date.now }
+});
+
+const TeamSchema = new mongoose.Schema({
+    userId: String,
+    nickname: String,
+    channel: String,
+    subs: String,
+    totalEarned: { type: Number, default: 0 }
+});
+
+const Application = mongoose.model('Application', AppSchema);
+const TeamMember = mongoose.model('TeamMember', TeamSchema);
+const BotUser = mongoose.model('BotUser', new mongoose.Schema({ userId: String }));
+
+// --- BOT SETUP ---
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_ID = 7822594120;
 const MINI_APP_URL = 'https://droptime-media.vercel.app';
+
+const bot = new Telegraf(BOT_TOKEN);
+
 // --- API SERVER ---
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.get('/api/data', (req, res) => {
-    res.json(getData());
+
+app.get('/api/data', async (req, res) => {
+    const applications = await Application.find({ status: 'pending' });
+    const team = await TeamMember.find();
+    res.json({ applications, team });
 });
-app.listen(3000, () => console.log('API Server running on port 3000'));
-// --- BOT SCENES ---
+
+// --- SCENES ---
 const teamScene = new Scenes.WizardScene(
     'team_wizard',
     async (ctx) => {
-        const db = getData();
         const userId = ctx.from.id.toString();
-        if (db.team.find(m => m.userId === userId)) {
-            await ctx.reply('❌ Вы уже в команде!');
-            return ctx.scene.leave();
-        }
-        await ctx.reply('📝 Заявка в КП.\n\nВведите ваш игровой никнейм:');
+        const existing = await Application.findOne({ userId, status: 'pending' });
+        if (existing) return ctx.reply('⏳ Заявка уже есть!');
+        await ctx.reply('Введите игровой никнейм:');
         return ctx.wizard.next();
     },
     async (ctx) => {
         ctx.wizard.state.nickname = ctx.message.text;
-        await ctx.reply('Платформа (TikTok / YouTube):', Markup.keyboard([['TikTok', 'YouTube']]).oneTime().resize());
+        await ctx.reply('Платформа:', Markup.keyboard([['TikTok', 'YouTube']]).oneTime().resize());
         return ctx.wizard.next();
     },
     async (ctx) => {
         ctx.wizard.state.platform = ctx.message.text;
-        await ctx.reply('Количество подписчиков:', Markup.removeKeyboard());
+        await ctx.reply('Подписчики:');
         return ctx.wizard.next();
     },
     async (ctx) => {
         ctx.wizard.state.subs = ctx.message.text;
-        await ctx.reply('Средние просмотры:');
+        await ctx.reply('Просмотры:');
         return ctx.wizard.next();
     },
     async (ctx) => {
-        ctx.wizard.state.avgViews = ctx.message.text;
+        ctx.wizard.state.views = ctx.message.text;
         await ctx.reply('Ссылка на канал:');
         return ctx.wizard.next();
     },
     async (ctx) => {
-        const data = ctx.wizard.state;
-        const db = getData();
-        const newApp = {
-            id: Date.now().toString(),
+        await new Application({
             type: 'team',
             userId: ctx.from.id.toString(),
             user: ctx.from.username || ctx.from.first_name,
-            nickname: data.nickname,
-            platform: data.platform,
-            subscribers: data.subs,
-            views: data.avgViews,
-            channel: ctx.message.text,
-            status: 'pending',
-            date: new Date().toISOString()
-        };
-        db.applications.push(newApp);
-        saveData(db);
-        await ctx.reply('✅ Заявка в КП отправлена!');
+            ...ctx.wizard.state,
+            channel: ctx.message.text
+        }).save();
+        await ctx.reply('✅ Отправлено!');
         return ctx.scene.leave();
     }
 );
+
 const paymentScene = new Scenes.WizardScene(
     'payment_wizard',
     async (ctx) => {
-        await ctx.reply('💰 Оформление выплаты.\n\nПришлите ссылку на ваше видео:');
+        await ctx.reply('Пришлите ссылку на видео:');
         return ctx.wizard.next();
     },
     async (ctx) => {
         ctx.wizard.state.video = ctx.message.text;
-        await ctx.reply('Укажите реквизиты и сумму (Пример: Сбер, СБП, 300р):');
+        await ctx.reply('Реквизиты и сумма:');
         return ctx.wizard.next();
     },
     async (ctx) => {
-        const db = getData();
-        const newApp = {
-            id: Date.now().toString(),
+        await new Application({
             type: 'payment',
             userId: ctx.from.id.toString(),
             user: ctx.from.username || ctx.from.first_name,
             video: ctx.wizard.state.video,
-            paymentInfo: ctx.message.text,
-            status: 'pending',
-            date: new Date().toISOString()
-        };
-        db.applications.push(newApp);
-        saveData(db);
-        await ctx.reply('✅ Заявка на выплату отправлена!');
+            paymentInfo: ctx.message.text
+        }).save();
+        await ctx.reply('✅ Отправлено!');
         return ctx.scene.leave();
     }
 );
-const bot = new Telegraf(BOT_TOKEN);
+
 const stage = new Scenes.Stage([teamScene, paymentScene]);
 bot.use(session());
 bot.use(stage.middleware());
+
 bot.start(async (ctx) => {
-    await ctx.scene.leave();
-    const db = getData();
-    const userId = ctx.from.id.toString();
-    if (!db.users.includes(userId)) {
-        db.users.push(userId);
-        saveData(db);
-    }
+    await BotUser.updateOne({ userId: ctx.from.id }, { userId: ctx.from.id }, { upsert: true });
     const buttons = [['Заявка в КП', 'Прайс'], ['Информация', 'Выплата']];
     if (ctx.from.id === ADMIN_ID) buttons.push([Markup.button.webApp('Панель Управления', MINI_APP_URL)]);
-    await ctx.reply('Привет! Это DropTime Media.', Markup.keyboard(buttons).resize());
+    await ctx.reply('Привет!', Markup.keyboard(buttons).resize());
 });
-bot.hears('Заявка в КП', async (ctx) => {
-    await ctx.scene.leave();
-    await ctx.scene.enter('team_wizard');
-});
-bot.hears('Выплата', async (ctx) => {
-    await ctx.scene.leave();
-    await ctx.scene.enter('payment_wizard');
-});
-bot.hears('Прайс', (ctx) => {
-    ctx.reply('Прайс:\n4000 просм = 300р\n2000 просм = 200р');
-});
-bot.hears('Информация', async (ctx) => {
-    const db = getData();
-    const member = db.team.find(m => m.userId === ctx.from.id.toString());
-    if (!member) return ctx.reply('Вы не в команде.');
-    await ctx.reply(`Ник: ${member.nickname}\nВыплачено: ${member.totalEarned || 0}р`);
-});
-bot.launch().then(() => console.log('Бот запущен! Ошибок нет.'));
+
+bot.hears('Заявка в КП', (ctx) => ctx.scene.enter('team_wizard'));
+bot.hears('Выплата', (ctx) => ctx.scene.enter('payment_wizard'));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => console.log(`API running on ${PORT}`));
+bot.launch();

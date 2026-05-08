@@ -1,37 +1,31 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "droptime-media",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "start": "node bot.js"
   },
   "dependencies": {
-    "axios": "^1.16.0",
-    "clsx": "^2.1.1",
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "framer-motion": "^12.38.0",
-    "lowdb": "^5.1.0",
-    "lucide-react": "^1.14.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-router-dom": "^7.15.0",
-    "steno": "^4.0.2",
-    "tailwind-merge": "^3.4.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "framer-motion": "^11.1.7",
+    "lucide-react": "^0.454.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "4.1.17",
-    "@types/node": "22.19.17",
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "5.1.1",
-    "tailwindcss": "4.1.17",
-    "typescript": "5.9.3",
-    "vite": "7.3.2",
-    "vite-plugin-singlefile": "2.3.0"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.2",
+    "vite-plugin-singlefile": "^2.0.1"
   }
 }

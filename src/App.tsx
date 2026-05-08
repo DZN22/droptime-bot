@@ -46,7 +46,8 @@ interface TeamMember {
 
 // --- КОНФИГУРАЦИЯ ---
 const ADMIN_ID = "7822594120";
-// Ссылка на ваш бэкенд (Render)
+
+// !!! ЗАМЕНИТЕ ЭТУ ССЫЛКУ НА ВАШУ ИЗ RENDER !!!
 const API_BASE_URL = 'https://droptime-bot.onrender.com'; 
 
 const App: React.FC = () => {
@@ -59,15 +60,17 @@ const App: React.FC = () => {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [broadcastMessage, setBroadcastMessage] = useState('');
 
-  // Загрузка данных из БД бота
+  // Функция загрузки данных из бота
   const loadData = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/data`);
+      if (!res.ok) throw new Error('Ошибка сети');
       const data = await res.json();
+      
       if (data.applications) setApplications(data.applications);
       if (data.team) setTeam(data.team);
     } catch (e) {
-      console.error('Ошибка загрузки данных из БД:', e);
+      console.error('Не удалось загрузить данные из бота:', e);
     }
   };
 
@@ -84,13 +87,13 @@ const App: React.FC = () => {
         }
       }
     } else {
-      // Для тестов вне Telegram
+      // Тестовый режим
       setUserId(ADMIN_ID); 
       setIsAuthenticated(true);
     }
     
     loadData();
-    const interval = setInterval(loadData, 10000); // Обновлять каждые 10 сек
+    const interval = setInterval(loadData, 5000); // Обновлять каждые 5 сек
     setIsLoading(false);
     return () => clearInterval(interval);
   }, []);
@@ -99,27 +102,20 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) return <div className="min-h-screen bg-pink-50 flex flex-col items-center justify-center p-6 text-center"><div className="bg-white p-8 rounded-3xl shadow-xl border border-pink-200"><Lock className="w-16 h-16 text-pink-400 mx-auto mb-4" /><h1 className="text-2xl font-bold text-gray-800 mb-2">Доступ ограничен</h1><p className="text-gray-500 mb-6">Панель администратора DropTime.</p><div className="bg-pink-100 p-3 rounded-xl text-pink-700 text-sm font-mono">Ваш ID: {userId || '???'}</div></div></div>;
 
-  const handleAppAction = async (id: string, action: 'approved' | 'rejected') => {
-    // В будущем тут будет запрос к API для обновления статуса в db.json
-    alert(`Заявка ${id} была ${action === 'approved' ? 'одобрена' : 'отклонена'}.`);
-    // Локальное обновление для вида
-    setApplications(apps => apps.map(a => a.id === id ? { ...a, status: action } : a));
-  };
-
-  const sendBroadcast = () => {
-    if (!broadcastMessage.trim()) return;
-    alert('Рассылка запущена!');
-    setBroadcastMessage('');
+  const handleAppAction = (id: string, status: 'approved' | 'rejected') => {
+    // В будущем здесь можно добавить fetch запрос на одобрение в боте
+    alert(`Заявка ${id} отмечена как: ${status}`);
+    setApplications(apps => apps.map(a => a.id === id ? { ...a, status } : a));
   };
 
   return (
     <div className="min-h-screen bg-[#FFF5F7] text-gray-800 font-sans pb-24">
       <header className="bg-white border-b border-pink-100 p-6 sticky top-0 z-10 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black text-pink-600 tracking-tighter">DropTime</h1>
+          <h1 className="text-2xl font-black text-pink-600">DropTime</h1>
           <p className="text-[10px] text-pink-400 font-bold uppercase tracking-widest">Media Dashboard</p>
         </div>
-        <div className="bg-pink-50 px-3 py-1 rounded-full border border-pink-200 text-[10px] font-bold text-pink-500 uppercase">Admin Mode</div>
+        <div className="bg-pink-50 px-3 py-1 rounded-full border border-pink-200 text-[10px] font-bold text-pink-500 uppercase tracking-tighter">Live Database</div>
       </header>
 
       <main className="p-4 max-w-lg mx-auto">
@@ -140,15 +136,15 @@ const App: React.FC = () => {
                     <div className="space-y-3 mb-6">
                       <div className="flex items-center gap-2"><User className="w-4 h-4 text-pink-400" /><span className="text-sm font-bold text-gray-700">{app.nickname}</span></div>
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
-                        <div className="bg-pink-50/50 p-2 rounded-xl"><p className="text-gray-400">Платформа</p><p className="font-bold">{app.platform}</p></div>
-                        <div className="bg-pink-50/50 p-2 rounded-xl"><p className="text-gray-400">Подписчики</p><p className="font-bold">{app.subscribers}</p></div>
+                        <div className="bg-pink-50/50 p-2 rounded-xl"><p className="text-gray-400 uppercase font-bold text-[9px]">Платформа</p><p className="font-bold">{app.platform}</p></div>
+                        <div className="bg-pink-50/50 p-2 rounded-xl"><p className="text-gray-400 uppercase font-bold text-[9px]">Подписчики</p><p className="font-bold">{app.subscribers}</p></div>
                       </div>
-                      <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400">Канал</p><p className="font-bold text-pink-600 truncate">{app.channel}</p></div>
+                      <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400 uppercase font-bold text-[9px]">Канал</p><p className="font-bold text-pink-600 truncate">{app.channel}</p></div>
                     </div>
                   ) : (
                     <div className="space-y-3 mb-6">
-                      <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400">Видео</p><p className="font-bold text-blue-500 truncate">{app.video}</p></div>
-                      <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400">Реквизиты</p><p className="font-bold text-green-600">{app.paymentInfo}</p></div>
+                      <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400 uppercase font-bold text-[9px]">Видео</p><p className="font-bold text-blue-500 truncate">{app.video}</p></div>
+                      <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400 uppercase font-bold text-[9px]">Реквизиты</p><p className="font-bold text-green-600">{app.paymentInfo}</p></div>
                     </div>
                   )}
 
@@ -159,7 +155,7 @@ const App: React.FC = () => {
                 </div>
               ))}
               {applications.filter(a => a.status === 'pending').length === 0 && (
-                <div className="text-center py-20 opacity-30"><UserPlus className="w-12 h-12 mx-auto mb-2" /><p className="font-bold">Заявок пока нет</p></div>
+                <div className="text-center py-20 opacity-40"><p className="font-bold">Новых заявок пока нет</p></div>
               )}
             </motion.div>
           )}
@@ -177,8 +173,8 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mb-5">
-                    <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400">Выплачено</p><p className="font-bold text-green-600">{member.totalEarned} ᴘ</p></div>
-                    <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400">Подписчики</p><p className="font-bold">{member.subs}</p></div>
+                    <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400 uppercase font-bold text-[9px]">Выплачено</p><p className="font-bold text-green-600">{member.totalEarned} ᴘ</p></div>
+                    <div className="bg-pink-50/50 p-3 rounded-xl text-[11px]"><p className="text-gray-400 uppercase font-bold text-[9px]">Подписчики</p><p className="font-bold">{member.subs}</p></div>
                   </div>
                   <div className="flex gap-2">
                     <button className="flex-1 bg-orange-50 text-orange-600 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-orange-100"><Ban className="w-3.5 h-3.5" /> Бан</button>
@@ -191,7 +187,7 @@ const App: React.FC = () => {
 
           {activeTab === 'stats' && (
             <motion.div key="stats" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-pink-700"><BarChart3 className="w-5 h-5" /> Статистика</h2>
+              <h2 className="text-lg font-bold flex items-center gap-2 mb-4 text-pink-700"><BarChart3 className="w-5 h-5" /> Глобальная стата</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 text-center"><DollarSign className="w-6 h-6 text-pink-500 mx-auto mb-2" /><p className="text-2xl font-black text-gray-900">{team.reduce((acc, m) => acc + m.totalEarned, 0)} ᴘ</p><p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Всего выплат</p></div>
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-pink-50 text-center"><Users className="w-6 h-6 text-pink-500 mx-auto mb-2" /><p className="text-2xl font-black text-gray-900">{team.length}</p><p className="text-[10px] text-gray-400 font-bold uppercase mt-1">В команде</p></div>
@@ -206,11 +202,11 @@ const App: React.FC = () => {
                 <textarea 
                   value={broadcastMessage}
                   onChange={(e) => setBroadcastMessage(e.target.value)}
-                  placeholder="Введите текст сообщения..." 
+                  placeholder="Ваше сообщение..." 
                   className="w-full h-40 bg-pink-50/30 border border-pink-100 rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-pink-200 text-gray-700 resize-none mb-4" 
                 />
                 <button 
-                  onClick={sendBroadcast}
+                  onClick={() => alert('Рассылка запущена')}
                   className="w-full bg-pink-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-pink-100 active:scale-95 transition-transform"
                 >
                   <Send className="w-5 h-5" /> Отправить всем

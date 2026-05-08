@@ -16,7 +16,7 @@ const getData = () => {
 };
 const saveData = (data) => fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 
-const BOT_TOKEN = '8767761276:AAFRmhWKiSMZufw0mmeV85DlL9ShuyhGQ6A';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8767761276:AAFRmhWKiSMZufw0mmeV85DlL9ShuyhGQ6A';
 const ADMIN_ID = 7822594120;
 const MINI_APP_URL = 'https://droptime-media.vercel.app'; // Ваша ссылка Vercel
 
